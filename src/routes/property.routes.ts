@@ -5,6 +5,7 @@ import {
   getPropertyById,
   updateProperty,
   deleteProperty,
+  getPropertiesbySearch,
 } from '../controllers/property.controller';
 import { protect } from '../middleware/auth.middleware';
 
@@ -12,6 +13,7 @@ const router = express.Router();
 
 // Public routes
 router.get('/', getProperties);
+router.get('/search', getPropertiesbySearch);
 router.get('/:id', getPropertyById);
 
 // Protected routes

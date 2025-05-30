@@ -24,6 +24,94 @@ export const createProperty = async (req: AuthenticatedRequest, res: Response) =
   }
 };
 
+//advance filtering techniques
+export const getPropertiesbySearch = async (req: Request, res: Response) => {
+  try {
+    const {
+      type,
+      minPrice,
+      maxPrice,
+      state,
+      city,
+      minArea,
+      maxArea,
+      bedrooms,
+      bathrooms,
+      amenities,
+      furnished,
+      availableFrom,
+      listedBy,
+      tags,
+      colorTheme,
+      minRating,
+      isVerified,
+      listingType,
+    } = req.query;
+
+    const query: any = {};
+
+    if (type) query.type = type;
+    if (state) query.state = state;
+    if (city) query.city = city;
+    if (furnished) query.furnished = furnished;
+    if (listedBy) query.listedBy = listedBy;
+    if (colorTheme) query.colorTheme = colorTheme;
+    if (listingType) query.listingType = listingType;
+    if (isVerified !== undefined) query.isVerified = isVerified === 'true';
+
+    if (bedrooms) query.bedrooms = Number(bedrooms);
+    if (bathrooms) query.bathrooms = Number(bathrooms);
+
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice) query.price.$gte = Number(minPrice);
+      if (maxPrice) query.price.$lte = Number(maxPrice);
+    }
+
+    if (minArea || maxArea) {
+      query.areaSqFt = {};
+      if (minArea) query.areaSqFt.$gte = Number(minArea);
+      if (maxArea) query.areaSqFt.$lte = Number(maxArea);
+    }
+
+    if (minRating) {
+      query.rating = { $gte: Number(minRating) };
+    }
+
+    if (availableFrom) {
+      query.availableFrom = { $lte: new Date(availableFrom as string) };
+    }
+
+    if (amenities) {
+      const amenityArray = Array.isArray(amenities)
+        ? amenities
+        : (amenities as string).split(',');
+      query.amenities = { $all: amenityArray };
+    }
+
+    if (tags) {
+      const tagArray = Array.isArray(tags)
+        ? tags
+        : (tags as string).split(',');
+      query.tags = { $all: tagArray };
+    }
+
+    const properties = await Property.find(query).populate('createdBy', 'name email');
+
+    res.status(200).json({
+      success: true,
+      count: properties.length,
+      data: properties,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
 // Get all properties
 export const getProperties = async (req: Request, res: Response) => {
   try {
