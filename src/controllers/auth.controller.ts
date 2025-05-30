@@ -4,7 +4,9 @@ import { User } from '../models/user.model';
 
 // Generate JWT Token
 const generateToken = (id: string): string => {
-  return jwt.sign({ id }, process.env.JWT_SECRET!, { expiresIn: '30d' });
+  // Use environment variable with a consistent fallback
+  const JWT_SECRET = process.env.JWT_SECRET || 'default_jwt_secret_key_123';
+  return jwt.sign({ _id: id }, JWT_SECRET, { expiresIn: '30d' });
 };
 
 // Register user

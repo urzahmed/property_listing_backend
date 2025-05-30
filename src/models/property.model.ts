@@ -24,6 +24,7 @@ export interface IProperty extends Document {
 
 const propertySchema = new Schema<IProperty>(
   {
+    id: { type: String, required: true, unique: true },
     title: {
       type: String,
       required: true,

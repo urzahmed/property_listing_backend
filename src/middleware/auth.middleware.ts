@@ -15,14 +15,25 @@ export const protect = async (
   try {
     let token;
 
+    // Log all headers for debugging
+    // console.log('All headers:', req.headers);
+    // console.log('Authorization header:', req.headers.authorization);
+    // console.log('Authorization header type:', typeof req.headers.authorization);
+
     if (
       req.headers.authorization &&
       req.headers.authorization.startsWith('Bearer')
     ) {
       token = req.headers.authorization.split(' ')[1];
+      console.log('Token extracted:', token);
+      console.log('Token length:', token.length);
+    } else {
+      console.log('Authorization header format check failed');
+      console.log('Header starts with Bearer?', req.headers.authorization?.startsWith('Bearer'));
     }
 
     if (!token) {
+      console.log('No token found in request');
       return res.status(401).json({
         success: false,
         message: 'Not authorized to access this route',
@@ -30,11 +41,14 @@ export const protect = async (
     }
 
     try {
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+      // Use the same secret as in the auth controller
+      const JWT_SECRET = process.env.JWT_SECRET || 'default_jwt_secret_key_123';
+      const decoded = jwt.verify(token, JWT_SECRET);
+      console.log('Decoded token:', decoded);
 
       // Get user from the token
-      const user = await User.findById((decoded as any).id).select('-password');
+      const user = await User.findById((decoded as any)._id).select('-password');
+      console.log('User found:', user ? 'Yes' : 'No');
 
       if (!user) {
         return res.status(401).json({
@@ -46,12 +60,14 @@ export const protect = async (
       (req as AuthenticatedRequest).user = user;
       next();
     } catch (error) {
+      console.log('Token verification error:', error);
       return res.status(401).json({
         success: false,
         message: 'Not authorized to access this route',
       });
     }
   } catch (error) {
+    console.log('Middleware error:', error);
     next(error);
   }
 }; 

@@ -7,7 +7,7 @@ export const createProperty = async (req: AuthenticatedRequest, res: Response) =
   try {
     const propertyData = {
       ...req.body,
-      createdBy: req.user?._id,
+      createdBy: req.user?.id,
     };
 
     const property = await Property.create(propertyData);
@@ -45,7 +45,7 @@ export const getProperties = async (req: Request, res: Response) => {
 // Get property by ID
 export const getPropertyById = async (req: Request, res: Response) => {
   try {
-    const property = await Property.findById(req.params.id).populate('createdBy', 'name email');
+    const property = await Property.findOne({ id: req.params.id }).populate('createdBy', 'name email');
 
     if (!property) {
       return res.status(404).json({
@@ -69,7 +69,7 @@ export const getPropertyById = async (req: Request, res: Response) => {
 // Update property
 export const updateProperty = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    let property = await Property.findById(req.params.id);
+    let property = await Property.findOne({ id: req.params.id });
 
     if (!property) {
       return res.status(404).json({
@@ -79,21 +79,21 @@ export const updateProperty = async (req: AuthenticatedRequest, res: Response) =
     }
 
     // Check if user is the creator of the property
-    if (property.createdBy.toString() !== req.user?.id.toString()) {
+    if (property.createdBy.toString() !== req.user?._id.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to update this property',
       });
     }
 
-    property = await Property.findByIdAndUpdate(
-      req.params.id,
+    property = await Property.findOneAndUpdate(
+      { id: req.params.id },
       req.body,
       {
         new: true,
         runValidators: true,
       }
-    );
+    );    
 
     res.status(200).json({
       success: true,
@@ -110,7 +110,7 @@ export const updateProperty = async (req: AuthenticatedRequest, res: Response) =
 // Delete property
 export const deleteProperty = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const property = await Property.findById(req.params.id);
+    let property = await Property.findOne({ id: req.params.id });
 
     if (!property) {
       return res.status(404).json({
