@@ -1,6 +1,62 @@
 # Property Listing API
 
-A RESTful API for managing property listings with user authentication.
+A RESTful API for managing property listings with user authentication and Redis caching.
+
+## Architecture
+
+### Redis Caching Implementation
+
+The application uses Upstash Redis for caching to optimize performance and reduce database load. Here's how the caching system works:
+
+#### 1. Cache Configuration
+- **Redis Client**: Configured using Upstash Redis REST API
+- **Cache TTL (Time To Live)**:
+  - Property List: 5 minutes (300 seconds)
+  - Property Detail: 10 minutes (600 seconds)
+  - Search Results: 5 minutes (300 seconds)
+
+#### 2. Caching Strategy
+
+##### Read Operations
+- **Property List** (`GET /api/properties`):
+  - Caches the entire property list
+  - Cache key: `property:list`
+  - Invalidated on new property creation or updates
+
+- **Property Detail** (`GET /api/properties/:id`):
+  - Caches individual property details
+  - Cache key: `property:detail:{propertyId}`
+  - Invalidated when the specific property is updated or deleted
+
+- **Property Search** (`GET /api/properties/search`):
+  - Caches search results based on query parameters
+  - Cache key: `property:search:{queryString}`
+  - Each unique search query combination has its own cache
+
+##### Write Operations
+- **Create Property** (`POST /api/properties`):
+  - Invalidates all property caches
+  - Ensures new properties are immediately available
+
+- **Update Property** (`PUT /api/properties/:id`):
+  - Invalidates specific property cache
+  - Invalidates property list cache
+  - Maintains data consistency
+
+- **Delete Property** (`DELETE /api/properties/:id`):
+  - Invalidates specific property cache
+  - Invalidates property list cache
+  - Removes deleted property from cache
+
+#### 3. Cache Invalidation Strategy
+- **Selective Invalidation**: Updates only affect relevant caches
+- **Full Invalidation**: Used when creating new properties
+- **Pattern-based Invalidation**: Uses Redis pattern matching for efficient cache clearing
+
+#### 4. Response Enhancement
+- Added `fromCache` flag in responses
+- Helps track cache hit/miss rates
+- Useful for monitoring cache effectiveness
 
 ## Setup
 
@@ -14,6 +70,8 @@ npm install
 PORT=5000
 MONGODB_URI=mongodb://localhost:27017/property_listing
 JWT_SECRET=your_jwt_secret_here
+UPSTASH_REDIS_REST_URL=your_upstash_redis_url
+UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
 ```
 
 3. Start the server:
@@ -93,75 +151,31 @@ Response:
 ### Properties
 
 #### Advanced Search and Filtering
-The GET /api/properties endpoint supports advanced search and filtering with the following query parameters:
+The GET /api/properties/search endpoint supports advanced search and filtering with the following query parameters:
 
 ```bash
 # Basic search with multiple filters
-curl -X GET "http://localhost:5000/api/properties/search?type=Bungalow&city=Coimbatore&state=Tamil Nadu"
+curl -X GET "http://localhost:5000/api/properties/search?type=apartment&minPrice=300000&maxPrice=400000&bedrooms=2&bathrooms=2&furnished=Fully%20Furnished&minRating=4"
 
 # Search with date filter
-curl -X GET "http://localhost:5000/api/properties/search?availableFrom=2025-10-14&listingType=rent"
-
-# Search with area range
-curl -X GET "http://localhost:5000/api/properties/search?minArea=1000&maxArea=3000&city=Coimbatore"
+curl -X GET "http://localhost:5000/api/properties/search?availableFrom=2024-03-01"
 ```
-
-Available Query Parameters:
-- `search`: Text search in title, city, state, and listedBy fields
-- `type`: Property type (e.g., Apartment, House)
-- `listingType`: Sale or Rent
-- `minPrice`: Minimum price
-- `maxPrice`: Maximum price
-- `minArea`: Minimum area in sq ft
-- `maxArea`: Maximum area in sq ft
-- `bedrooms`: Number of bedrooms
-- `bathrooms`: Number of bathrooms
-- `furnished`: Furnishing status
-- `availableFrom`: Available from date (YYYY-MM-DD)
-- `colorTheme`: Color theme
-- `minRating`: Minimum rating
-- `isVerified`: Verification status (true/false)
-- `page`: Page number for pagination
-- `limit`: Number of items per page
-- `sort`: Sort fields (e.g., price:desc,createdAt:desc)
 
 Response:
 ```json
 {
   "success": true,
-  "count": 1,
-  "total": 50,
-  "totalPages": 5,
-  "currentPage": 1,
+  "count": number_of_properties,
   "data": [
     {
-      "_id": "property_id_here",
-      "title": "Luxury Apartment",
-      "type": "Apartment",
-      "price": 350000,
-      "state": "California",
-      "city": "Los Angeles",
-      "areaSqFt": 1200,
-      "bedrooms": 2,
-      "bathrooms": 2,
-      "furnished": "Fully Furnished",
-      "availableFrom": "2024-03-01",
-      "listedBy": "John Doe",
-      "colorTheme": "Modern",
-      "listingType": "Sale",
-      "rating": 4.5,
-      "isVerified": true,
-      "createdBy": {
-        "_id": "user_id_here",
-        "name": "John Doe",
-        "email": "john@example.com"
-      }
+      // property details
     }
-  ]
+  ],
+  "fromCache": true/false
 }
 ```
 
-#### Create a Property
+#### Create Property
 ```bash
 curl -X POST http://localhost:5000/api/properties \
 -H "Content-Type: application/json" \
@@ -236,7 +250,8 @@ Response:
       "name": "John Doe",
       "email": "john@example.com"
     }
-  }
+  },
+  "fromCache": true/false
 }
 ```
 
@@ -324,4 +339,7 @@ Response:
 4. All dates should be in ISO format (YYYY-MM-DD)
 5. Advanced search supports multiple filters that can be combined
 6. Search results are paginated with a default of 10 items per page
-7. Results can be sorted by any field using the sort parameter 
+7. Results can be sorted by any field using the sort parameter
+8. Redis caching is implemented for all read operations
+9. Cache invalidation is automatic for write operations
+10. The `fromCache` flag in responses indicates if data was served from cache 

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Property, IProperty } from '../models/property.model';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import redisService from '../services/redis.service';
 
 // Create a new property
 export const createProperty = async (req: AuthenticatedRequest, res: Response) => {
@@ -11,6 +12,9 @@ export const createProperty = async (req: AuthenticatedRequest, res: Response) =
     };
 
     const property = await Property.create(propertyData);
+    
+    // Invalidate all property caches when a new property is created
+    await redisService.invalidateAllPropertyCaches();
 
     res.status(201).json({
       success: true,
@@ -27,6 +31,19 @@ export const createProperty = async (req: AuthenticatedRequest, res: Response) =
 //advance filtering techniques
 export const getPropertiesbySearch = async (req: Request, res: Response) => {
   try {
+    const queryString = JSON.stringify(req.query);
+    
+    // Try to get cached results first
+    const cachedResults = await redisService.getCachedSearchResults(queryString);
+    if (cachedResults) {
+      return res.status(200).json({
+        success: true,
+        count: cachedResults.length,
+        data: cachedResults,
+        fromCache: true,
+      });
+    }
+
     const {
       type,
       minPrice,
@@ -98,10 +115,14 @@ export const getPropertiesbySearch = async (req: Request, res: Response) => {
 
     const properties = await Property.find(query).populate('createdBy', 'name email');
 
+    // Cache the search results
+    await redisService.cacheSearchResults(queryString, properties);
+
     res.status(200).json({
       success: true,
       count: properties.length,
       data: properties,
+      fromCache: false,
     });
   } catch (error: any) {
     res.status(500).json({
@@ -111,16 +132,30 @@ export const getPropertiesbySearch = async (req: Request, res: Response) => {
   }
 };
 
-
 // Get all properties
 export const getProperties = async (req: Request, res: Response) => {
   try {
+    // Try to get cached properties first
+    const cachedProperties = await redisService.getCachedPropertyList();
+    if (cachedProperties) {
+      return res.status(200).json({
+        success: true,
+        count: cachedProperties.length,
+        data: cachedProperties,
+        fromCache: true,
+      });
+    }
+
     const properties = await Property.find().populate('createdBy', 'name email');
+
+    // Cache the properties
+    await redisService.cachePropertyList(properties);
 
     res.status(200).json({
       success: true,
       count: properties.length,
       data: properties,
+      fromCache: false,
     });
   } catch (error: any) {
     res.status(500).json({
@@ -133,6 +168,16 @@ export const getProperties = async (req: Request, res: Response) => {
 // Get property by ID
 export const getPropertyById = async (req: Request, res: Response) => {
   try {
+    // Try to get cached property first
+    const cachedProperty = await redisService.getCachedPropertyDetail(req.params.id);
+    if (cachedProperty) {
+      return res.status(200).json({
+        success: true,
+        data: cachedProperty,
+        fromCache: true,
+      });
+    }
+
     const property = await Property.findOne({ id: req.params.id }).populate('createdBy', 'name email');
 
     if (!property) {
@@ -142,9 +187,13 @@ export const getPropertyById = async (req: Request, res: Response) => {
       });
     }
 
+    // Cache the property
+    await redisService.cachePropertyDetail(req.params.id, property);
+
     res.status(200).json({
       success: true,
       data: property,
+      fromCache: false,
     });
   } catch (error: any) {
     res.status(500).json({
@@ -181,7 +230,10 @@ export const updateProperty = async (req: AuthenticatedRequest, res: Response) =
         new: true,
         runValidators: true,
       }
-    );    
+    );
+
+    // Invalidate cache for this property
+    await redisService.invalidatePropertyCache(req.params.id);
 
     res.status(200).json({
       success: true,
@@ -216,6 +268,9 @@ export const deleteProperty = async (req: AuthenticatedRequest, res: Response) =
     }
 
     await property.deleteOne();
+
+    // Invalidate cache for this property
+    await redisService.invalidatePropertyCache(req.params.id);
 
     res.status(200).json({
       success: true,

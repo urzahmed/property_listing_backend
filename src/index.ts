@@ -1,14 +1,14 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import propertyRoutes from './routes/property.routes';
 
-// Load environment variables
-dotenv.config();
-
 const app = express();
+
 
 // Middleware
 app.use(cors());
