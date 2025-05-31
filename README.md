@@ -305,6 +305,93 @@ Response:
 }
 ```
 
+### Favorites
+
+#### Add Property to Favorites
+```bash
+curl -X POST http://localhost:5000/api/favorites/property_id_here \
+-H "Authorization: Bearer jwt_token_here"
+```
+
+Response:
+```json
+{
+  "message": "Property added to favorites",
+  "favorite": {
+    "_id": "favorite_id_here",
+    "user": "user_id_here",
+    "property": "property_id_here",
+    "createdAt": "2024-03-14T12:00:00.000Z",
+    "updatedAt": "2024-03-14T12:00:00.000Z"
+  }
+}
+```
+
+#### Remove Property from Favorites
+```bash
+curl -X DELETE http://localhost:5000/api/favorites/property_id_here \
+-H "Authorization: Bearer jwt_token_here"
+```
+
+Response:
+```json
+{
+  "message": "Property removed from favorites"
+}
+```
+
+#### Get User's Favorite Properties
+```bash
+curl -X GET http://localhost:5000/api/favorites \
+-H "Authorization: Bearer jwt_token_here"
+```
+
+Response:
+```json
+[
+  {
+    "_id": "favorite_id_here",
+    "user": "user_id_here",
+    "property": {
+      "title": "Luxury Apartment",
+      "type": "Apartment",
+      "price": 350000,
+      "state": "California",
+      "city": "Los Angeles",
+      "areaSqFt": 1200,
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "amenities": ["Pool", "Gym"],
+      "furnished": "Fully Furnished",
+      "availableFrom": "2024-03-01",
+      "listedBy": "John Doe",
+      "tags": ["Luxury", "Modern"],
+      "colorTheme": "Modern",
+      "rating": 4.5,
+      "isVerified": true,
+      "listingType": "Sale"
+    },
+    "createdAt": "2024-03-14T12:00:00.000Z",
+    "updatedAt": "2024-03-14T12:00:00.000Z"
+  }
+]
+```
+
+#### Check if Property is in Favorites
+```bash
+curl -X GET http://localhost:5000/api/favorites/check/property_id_here \
+-H "Authorization: Bearer jwt_token_here"
+```
+
+Response:
+```json
+{
+  "isFavorite": true
+}
+```
+
+Note: All favorite endpoints require authentication. Make sure to include the JWT token in the Authorization header.
+
 ## Error Responses
 
 ### Authentication Error

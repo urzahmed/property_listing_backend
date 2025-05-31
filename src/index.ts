@@ -6,7 +6,7 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import authRoutes from './routes/auth.routes';
 import propertyRoutes from './routes/property.routes';
-
+import favoriteRoutes from './routes/favorite.routes';
 const app = express();
 
 
@@ -17,7 +17,7 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
-
+app.use('/api/favorites', favoriteRoutes);
 // MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/property_listing';
 mongoose
